@@ -2,14 +2,15 @@ from typing import List, Tuple, Dict
 
 try:
     from github import Github
-except ImportError as e:
-    # Provide a clear message if dependency is missing at runtime
-    raise RuntimeError(
-        "PyGithub is not installed. Run 'pip install -r requirements.txt' or 'pip install PyGithub'."
-    ) from e
+except ImportError:
+    # Defer raising until the functions that need PyGithub are called.
+    Github = None
 
 
 def create_repo_and_commit(token: str, repo_name: str, files: List[Tuple[str, str]]) -> Dict[str, str]:
+
+    if Github is None:
+        raise RuntimeError("PyGithub is not installed. Install with 'pip install PyGithub' or include it in requirements.txt")
 
     gh = Github(token)
     user = gh.get_user()
@@ -26,6 +27,9 @@ def create_repo_and_commit(token: str, repo_name: str, files: List[Tuple[str, st
     }
 
 def create_issue(token: str, full_name: str, title: str, body: str | None = None) -> str:
+
+    if Github is None:
+        raise RuntimeError("PyGithub is not installed. Install with 'pip install PyGithub' or include it in requirements.txt")
 
     gh = Github(token)
     repo = gh.get_repo(full_name)
