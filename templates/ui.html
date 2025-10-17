@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TDS_4 Generator</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+      .container { max-width: 760px; margin: 0 auto; }
+      label { display: block; margin: 10px 0 6px; font-weight: 600; }
+      input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+      textarea { min-height: 120px; }
+      .row { display: flex; gap: 12px; }
+      .row > div { flex: 1; }
+      button { background: #2563eb; color: white; border: 0; padding: 10px 16px; border-radius: 6px; cursor: pointer; }
+      button:disabled { background: #94a3b8; cursor: not-allowed; }
+      .note { color: #475569; font-size: 14px; }
+      .result { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>App Generator</h1>
+      <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px">
+        <a href="/login/github"><button id="loginBtn">Login with GitHub</button></a>
+        <a href="/logout"><button id="logoutBtn">Logout</button></a>
+        <span id="loginStatus" class="note"></span>
+      </div>
+      <p class="note">Fill the form and submit to trigger generation. Response returns immediately; background task will create the repo and send notifications.</p>
+
+      <div>
+        <label for="project_name">Project name</label>
+        <input id="project_name" type="text" placeholder="demo-app-001" />
+
+        <label for="description">Description</label>
+        <textarea id="description" placeholder="Small demo app generated via background task"></textarea>
+
+        <label for="requirements">Requirements (comma-separated)</label>
+        <input id="requirements" type="text" placeholder="fastapi, requests" />
+
+        <div class="row">
+          <div>
+            <label for="secret_key">Secret key (optional)</label>
+            <input id="secret_key" type="text" placeholder="secret123" />
+          </div>
+          <div>
+            <label for="notify_email">Notify Email (optional)</label>
+            <input id="notify_email" type="text" placeholder="you@example.com" />
+          </div>
+        </div>
+
+        <button id="submitBtn">Generate</button>
+
+        <label for="response_text">Response</label>
+        <textarea id="response_text" class="result" readonly></textarea>
+      </div>
+    </div>
+
+    <script>
+      const byId = (id) => document.getElementById(id);
+      const out = byId('response_text');
+      const btn = byId('submitBtn');
+      const loginStatus = byId('loginStatus');
+
+      async function refreshLogin() {
+        try {
+          const res = await fetch('/me');
+          if (res.ok) {
+            const data = await res.json();
+            loginStatus.textContent = `Logged in as ${data.login}`;
+            btn.disabled = false;
+          } else {
+            loginStatus.textContent = 'Not logged in';
+            btn.disabled = true;
+          }
+        } catch {
+          loginStatus.textContent = 'Not logged in';
+          btn.disabled = true;
+        }
+      }
+
+      refreshLogin();
+
+      btn.addEventListener('click', async () => {
+        out.value = '';
+        btn.disabled = true;
+        try {
+          const project_name = byId('project_name').value.trim();
+          const description = byId('description').value.trim();
+          const requirementsStr = byId('requirements').value.trim();
+          const secret_key = byId('secret_key').value.trim();
+          const notify_email = byId('notify_email').value.trim();
+
+          const requirements = requirementsStr ? requirementsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+          const body = { project_name, description, requirements };
+          if (secret_key) body.secret_key = secret_key;
+          if (notify_email) body.notify_email = notify_email;
+
+          const res = await fetch('/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          // If backend includes expected_repo_html, add a clickable link
+          if (data.expected_repo_html) {
+            out.value = JSON.stringify(data, null, 2) + "\n\nRepo: " + data.expected_repo_html;
+          } else {
+            out.value = JSON.stringify(data, null, 2);
+          }
+        } catch (e) {
+          out.value = 'Error: ' + e;
+        } finally {
+          await refreshLogin();
+        }
+      });
+    </script>
+  </body>
+  </html>
+
+

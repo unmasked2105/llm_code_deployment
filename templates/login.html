@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+      .container { max-width: 600px; margin: 0 auto; }
+      .note { color: #475569; font-size: 14px; }
+      button { background: #181717; color: white; border: 0; padding: 10px 16px; border-radius: 6px; cursor: pointer; }
+      a.button { text-decoration: none; }
+      .status { margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Login</h1>
+      <p class="note">Authenticate with GitHub to allow the app to create repositories on your behalf.</p>
+
+      <p><a class="button" href="/login/github"><button>Login with GitHub</button></a></p>
+      <p><a class="button" href="/logout"><button>Logout</button></a></p>
+
+      <div class="status">
+        <strong>Status:</strong> <span id="loginStatus" class="note">Checking...</span>
+      </div>
+
+      <p class="note">After login, you can go to <a href="/ui">/ui</a> to generate a project.</p>
+    </div>
+
+    <script>
+      const loginStatus = document.getElementById('loginStatus');
+      async function refreshLogin() {
+        try {
+          const res = await fetch('/me');
+          if (res.ok) {
+            const data = await res.json();
+            loginStatus.textContent = `Logged in as ${data.login}`;
+          } else {
+            loginStatus.textContent = 'Not logged in';
+          }
+        } catch {
+          loginStatus.textContent = 'Not logged in';
+        }
+      }
+      refreshLogin();
+    </script>
+  </body>
+  </html>
+
+
