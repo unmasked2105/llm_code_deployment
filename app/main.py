@@ -154,6 +154,65 @@ def check_repo(project_name: str, http_request: Request):
         return {"exists": False}
 
 
+@app.post("/deploy")
+def deploy_endpoint(request: GenerateRequest, http_request: Request):
+
+    """
+    Synchronous deploy endpoint that uses the logged-in user's GitHub token (session)
+    to create the repository immediately and return repo information.
+    """
+
+    # Require user GitHub login and use their token for repo creation
+    session_token = http_request.session.get("gh_token") if hasattr(http_request, "session") else None
+    if not session_token:
+        raise HTTPException(status_code=401, detail="GitHub login required. Go to /login/github")
+
+    # Validate secret if needed
+    if os.getenv("SECRET_KEY") and request.secret_key and request.secret_key != os.getenv("SECRET_KEY"):
+        raise HTTPException(status_code=401, detail="Invalid secret key")
+
+    try:
+        files = generate_app_files(description=request.description, requirements=request.requirements)
+        repo_info = create_repo_and_commit(token=session_token, repo_name=request.project_name, files=files)
+
+        # Best-effort: create issue
+        try:
+            if os.getenv("ENABLE_GITHUB_ISSUE", "true").lower() in ("1", "true", "yes"):
+                title = f"Generation completed for {request.project_name}"
+                body = f"Repository: {repo_info.get('html_url')}\n\nMetadata: {request.metadata or {}}"
+                create_issue(token=session_token, full_name=repo_info.get("full_name", ""), title=title, body=body)
+        except Exception:
+            pass
+
+        # Best-effort: notify evaluator
+        try:
+            notify_url = request.notify_url or os.getenv("EVAL_SERVER_URL")
+            if notify_url:
+                payload = {"project_name": request.project_name, "repo_url": repo_info.get("clone_url"), "metadata": request.metadata or {}}
+                notify_evaluator(url=notify_url, payload=payload)
+        except Exception:
+            pass
+
+        # Best-effort: send email
+        try:
+            target_email = request.notify_email or os.getenv("MAIL_TO")
+            if target_email:
+                os.environ["MAIL_TO"] = target_email
+                subject = f"Repo created: {request.project_name}"
+                body = (
+                    f"Project: {request.project_name}\n"
+                    f"Repo: {repo_info.get('html_url')}\n"
+                    f"Clone: {repo_info.get('clone_url')}\n"
+                )
+                send_email_notification(subject=subject, body=body)
+        except Exception:
+            pass
+
+        return {"status": "deployed", "repo": repo_info}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # UI routes
 app.include_router(ui_router)
 app.include_router(auth_router)

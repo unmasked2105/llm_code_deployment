@@ -49,7 +49,8 @@
           </div>
         </div>
 
-        <button id="submitBtn">Generate</button>
+  <button id="submitBtn">Generate</button>
+  <button id="deployBtn" style="background:#059669; margin-left:8px" disabled>Deploy (use my GitHub)</button>
 
         <label for="response_text">Response</label>
         <textarea id="response_text" class="result" readonly></textarea>
@@ -59,7 +60,8 @@
     <script>
       const byId = (id) => document.getElementById(id);
       const out = byId('response_text');
-      const btn = byId('submitBtn');
+  const btn = byId('submitBtn');
+  const deployBtn = byId('deployBtn');
       const loginStatus = byId('loginStatus');
 
       async function refreshLogin() {
@@ -69,13 +71,16 @@
             const data = await res.json();
             loginStatus.textContent = `Logged in as ${data.login}`;
             btn.disabled = false;
+            deployBtn.disabled = false;
           } else {
             loginStatus.textContent = 'Not logged in';
             btn.disabled = true;
+            deployBtn.disabled = true;
           }
         } catch {
           loginStatus.textContent = 'Not logged in';
           btn.disabled = true;
+          deployBtn.disabled = true;
         }
       }
 
@@ -108,6 +113,40 @@
           } else {
             out.value = JSON.stringify(data, null, 2);
           }
+        } catch (e) {
+          out.value = 'Error: ' + e;
+        } finally {
+          await refreshLogin();
+        }
+      });
+
+      deployBtn.addEventListener('click', async () => {
+        out.value = '';
+        deployBtn.disabled = true;
+        try {
+          const project_name = byId('project_name').value.trim();
+          const description = byId('description').value.trim();
+          const requirementsStr = byId('requirements').value.trim();
+          const secret_key = byId('secret_key').value.trim();
+          const notify_email = byId('notify_email').value.trim();
+
+          if (!project_name) {
+            out.value = 'Please provide project name before deploying.';
+            return;
+          }
+
+          const requirements = requirementsStr ? requirementsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+          const body = { project_name, description, requirements };
+          if (secret_key) body.secret_key = secret_key;
+          if (notify_email) body.notify_email = notify_email;
+
+          const res = await fetch('/deploy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          out.value = JSON.stringify(data, null, 2);
         } catch (e) {
           out.value = 'Error: ' + e;
         } finally {
