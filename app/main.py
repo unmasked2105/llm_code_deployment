@@ -209,6 +209,9 @@ def deploy_endpoint(request: GenerateRequest, http_request: Request):
             pass
 
         return {"status": "deployed", "repo": repo_info}
+    except RuntimeError as e:
+        # Likely a missing optional dependency (e.g., PyGithub) or other runtime guard
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
