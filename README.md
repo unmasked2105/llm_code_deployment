@@ -26,8 +26,9 @@ Create a file named `.env` in the project root with:
 ```
 SECRET_KEY=secret123
 GITHUB_TOKEN=ghp_yourtokenhere
-EVAL_SERVER_URL=https://webhook.site/your-uuid
-EVAL_FORMAT=json
+#EVAL_SERVER_URL=https://webhook.site/your-uuid
+#EVAL_FORMAT=json
+#use formspree instead
 # Optional if wiring real OpenAI generation later
 OPENAI_API_KEY=sk-yourkey
 ENABLE_GITHUB_ISSUE=true
